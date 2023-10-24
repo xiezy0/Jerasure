@@ -49,6 +49,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <stdint.h>
 
 #include "galois.h"
 
@@ -196,7 +197,7 @@ int galois_uninit_field(int w)
 
 static void galois_init(int w)
 {
-  if (w <= 0 || w > 32) {
+  if (w <= 0 || w > 64) {
     fprintf(stderr, "ERROR -- cannot init default Galois field for w=%d\n", w);
     assert(0);
   }
@@ -262,6 +263,22 @@ void galois_change_technique(gf_t *gf, int w)
   gfp_array[w] = gf;
 }
 
+int64_t galois_single_multiply64(int64_t x, int64_t y, int w)
+{
+    if (x == 0 || y == 0) return 0;
+
+    if (gfp_array[w] == NULL) {
+        galois_init(w);
+    }
+
+    if (w <= 64) {
+        return gfp_array[w]->multiply.w64(gfp_array[w], x, y);
+    } else {
+        fprintf(stderr, "ERROR -- Galois field not implemented for w=%d\n", w);
+        return 0;
+    }
+}
+
 int galois_single_multiply(int x, int y, int w)
 {
   if (x == 0 || y == 0) return 0;
@@ -270,8 +287,8 @@ int galois_single_multiply(int x, int y, int w)
     galois_init(w);
   }
 
-  if (w <= 32) {
-    return gfp_array[w]->multiply.w32(gfp_array[w], x, y);
+  if (w <= 64) {
+    return gfp_array[w]->multiply.w64(gfp_array[w], x, y);
   } else {
     fprintf(stderr, "ERROR -- Galois field not implemented for w=%d\n", w);
     return 0;
@@ -287,12 +304,29 @@ int galois_single_divide(int x, int y, int w)
     galois_init(w);
   }
 
-  if (w <= 32) {
-    return gfp_array[w]->divide.w32(gfp_array[w], x, y);
+  if (w <= 64) {
+    return gfp_array[w]->divide.w64(gfp_array[w], x, y);
   } else {
     fprintf(stderr, "ERROR -- Galois field not implemented for w=%d\n", w);
     return 0;
   }
+}
+
+int64_t galois_single_divide64(int x, int y, int w)
+{
+    if (x == 0) return 0;
+    if (y == 0) return -1;
+
+    if (gfp_array[w] == NULL) {
+        galois_init(w);
+    }
+
+    if (w <= 64) {
+        return gfp_array[w]->divide.w64(gfp_array[w], x, y);
+    } else {
+        fprintf(stderr, "ERROR -- Galois field not implemented for w=%d\n", w);
+        return 0;
+    }
 }
 
 void galois_w08_region_multiply(char *region,      /* Region to multiply */
@@ -332,6 +366,18 @@ void galois_w32_region_multiply(char *region,      /* Region to multiply */
   gfp_array[32]->multiply_region.w32(gfp_array[32], region, r2, multby, nbytes, add);
 }
 
+void galois_w64_region_multiply(char *region,      /* Region to multiply */
+                                int64_t multby,       /* Number to multiply by */
+                                int nbytes,        /* Number of bytes in region */
+                                char *r2,          /* If r2 != NULL, products go here */
+                                int add)
+{
+    if (gfp_array[64] == NULL) {
+        galois_init(64);
+    }
+    gfp_array[64]->multiply_region.w64(gfp_array[64], region, r2, multby, nbytes, add);
+}
+
 void galois_w8_region_xor(void *src, void *dest, int nbytes)
 {
   if (gfp_array[8] == NULL) {
@@ -356,10 +402,18 @@ void galois_w32_region_xor(void *src, void *dest, int nbytes)
   gfp_array[32]->multiply_region.w32(gfp_array[32], src, dest, 1, nbytes, 1);
 }
 
+void galois_w64_region_xor(void *src, void *dest, int nbytes)
+{
+    if (gfp_array[64] == NULL) {
+        galois_init(64);
+    }
+    gfp_array[64]->multiply_region.w64(gfp_array[64], src, dest, 1, nbytes, 1);
+}
+
 void galois_region_xor(char *src, char *dest, int nbytes)
 {
   if (nbytes >= 16) {
-    galois_w32_region_xor(src, dest, nbytes);
+    galois_w64_region_xor(src, dest, nbytes);
   } else {
     int i = 0;
     for (i = 0; i < nbytes; i++) {

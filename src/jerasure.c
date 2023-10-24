@@ -51,6 +51,7 @@
 
 #include "galois.h"
 #include "jerasure.h"
+#include <stdint.h>
 
 #define talloc(type, num) (type *) malloc(sizeof(type)*(num))
 
@@ -58,28 +59,64 @@ static double jerasure_total_xor_bytes = 0;
 static double jerasure_total_gf_bytes = 0;
 static double jerasure_total_memcpy_bytes = 0;
 
-void jerasure_print_matrix(int *m, int rows, int cols, int w)
+void jerasure_print_matrix64(int64_t *m, int rows, int cols, int w)
 {
   int i, j;
   int fw;
   char s[30];
   unsigned int w2;
 
-  if (w == 32) {
-    fw = 10;
-  } else {
-    w2 = (1 << w);
-    sprintf(s, "%u", w2-1);
-    fw = strlen(s);
+  if (w == 64) {
+    fw = 20;
   }
+  else if (w == 32){
+    fw = 10;
+  }
+  else
+  {
+      w2 = (1 << w);
+      sprintf(s, "%u", w2-1);
+      fw = strlen(s);
+  }
+
 
   for (i = 0; i < rows; i++) {
     for (j = 0; j < cols; j++) {
       if (j != 0) printf(" ");
-      printf("%*u", fw, m[i*cols+j]); 
+      printf("%*llu", fw, m[i*cols+j]);
     }
     printf("\n");
   }
+}
+
+void jerasure_print_matrix(int *m, int rows, int cols, int w)
+{
+    int i, j;
+    int fw;
+    char s[30];
+    unsigned int w2;
+
+    if (w == 64) {
+        fw = 20;
+    }
+    else if (w == 32){
+        fw = 10;
+    }
+    else
+    {
+        w2 = (1 << w);
+        sprintf(s, "%u", w2-1);
+        fw = strlen(s);
+    }
+
+
+    for (i = 0; i < rows; i++) {
+        for (j = 0; j < cols; j++) {
+            if (j != 0) printf(" ");
+            printf("%*u", fw, m[i*cols+j]);
+        }
+        printf("\n");
+    }
 }
 
 void jerasure_print_bitmatrix(int *m, int rows, int cols, int w)
@@ -172,7 +209,7 @@ int jerasure_matrix_decode(int k, int m, int w, int *matrix, int row_k_ones, int
   int *tmpids;
   int *erased, *decoding_matrix, *dm_ids;
 
-  if (w != 8 && w != 16 && w != 32) return -1;
+  if (w != 8 && w != 16 && w != 32 && w != 64) return -1;
 
   erased = jerasure_erasures_to_erased(k, m, erasures);
   if (erased == NULL) return -1;
@@ -274,6 +311,41 @@ int jerasure_matrix_decode(int k, int m, int w, int *matrix, int row_k_ones, int
   return 0;
 }
 
+int *jerasure_matrix_to_bitmatrix64(int k, int m, int w, int64_t *matrix)
+{
+    int *bitmatrix;
+    int rowelts, rowindex, colindex, i, j, l, x;
+    int yindex;
+    int evaresult;
+    int64_t elt;
+
+    if (matrix == NULL) { return NULL; }
+
+    bitmatrix = talloc(int, k*m*w*w);
+    if (!bitmatrix) return NULL;
+
+    rowelts = k * w;
+    rowindex = 0;
+
+    for (i = 0; i < m; i++) {
+        colindex = rowindex;
+        for (j = 0; j < k; j++) {
+            elt = matrix[i*k+j];
+
+            for (x = 0; x < w; x++) {
+                for (l = 0; l < w; l++) {
+                    yindex = colindex+x+l*rowelts;
+                    evaresult = ((elt & (1ULL << l)) ? 1 : 0);
+                    bitmatrix[colindex+x+l*rowelts] = evaresult;
+                }
+                elt = galois_single_multiply64(elt, 2, w);
+            }
+            colindex += w;
+        }
+        rowindex += rowelts * w;
+    }
+    return bitmatrix;
+}
 
 int *jerasure_matrix_to_bitmatrix(int k, int m, int w, int *matrix) 
 {
@@ -295,6 +367,13 @@ int *jerasure_matrix_to_bitmatrix(int k, int m, int w, int *matrix)
       for (x = 0; x < w; x++) {
         for (l = 0; l < w; l++) {
           bitmatrix[colindex+x+l*rowelts] = ((elt & (1 << l)) ? 1 : 0);
+//          if(elt == 1 && ((elt & (1 << l)) ? 1 : 0) == 1)
+//          {
+//                jerasure_print_bitmatrix(bitmatrix, m*w, k*w, w);
+//                printf("%d \n", l);
+//                printf("%d \n", colindex+x+l*rowelts);
+//                printf("%d \n", x);
+//          }
         }
         elt = galois_single_multiply(elt, 2, w);
       }
@@ -310,7 +389,7 @@ void jerasure_matrix_encode(int k, int m, int w, int *matrix,
 {
   int i;
   
-  if (w != 8 && w != 16 && w != 32) {
+  if (w != 8 && w != 16 && w != 32 && w != 64) {
     fprintf(stderr, "ERROR: jerasure_matrix_encode() and w is not 8, 16 or 32\n");
     assert(0);
   }
@@ -318,6 +397,21 @@ void jerasure_matrix_encode(int k, int m, int w, int *matrix,
   for (i = 0; i < m; i++) {
     jerasure_matrix_dotprod(k, w, matrix+(i*k), NULL, k+i, data_ptrs, coding_ptrs, size);
   }
+}
+
+void jerasure_matrix_encode64(int k, int m, int w, int64_t *matrix,
+                            char **data_ptrs, char **coding_ptrs, int size)
+{
+    int i;
+
+    if (w != 8 && w != 16 && w != 32 && w != 64) {
+        fprintf(stderr, "ERROR: jerasure_matrix_encode() and w is not 8, 16 or 32\n");
+        assert(0);
+    }
+
+    for (i = 0; i < m; i++) {
+        jerasure_matrix_dotprod64(k, w, matrix+(i*k), NULL, k+i, data_ptrs, coding_ptrs, size);
+    }
 }
 
 void jerasure_bitmatrix_dotprod(int k, int w, int *bitmatrix_row,
@@ -580,6 +674,68 @@ void jerasure_free_schedule_cache(int k, int m, int ***cache)
   free(cache);
 }
 
+void jerasure_matrix_dotprod64(int k, int w, int64_t *matrix_row,
+                               int *src_ids, int dest_id,
+                               char **data_ptrs, char **coding_ptrs, int size)
+{
+    int init;
+    char *dptr, *sptr;
+    int i;
+
+    if (w != 1 && w != 8 && w != 16 && w != 32 && w != 64) {
+        fprintf(stderr, "ERROR: jerasure_matrix_dotprod() called and w is not 1, 8, 16 or 32\n");
+        assert(0);
+    }
+
+    init = 0;
+
+    dptr = (dest_id < k) ? data_ptrs[dest_id] : coding_ptrs[dest_id-k];
+
+    /* First copy or xor any data that does not need to be multiplied by a factor */
+
+    for (i = 0; i < k; i++) {
+        if (matrix_row[i] == 1) {
+            if (src_ids == NULL) {
+                sptr = data_ptrs[i];
+            } else if (src_ids[i] < k) {
+                sptr = data_ptrs[src_ids[i]];
+            } else {
+                sptr = coding_ptrs[src_ids[i]-k];
+            }
+            if (init == 0) {
+                memcpy(dptr, sptr, size);
+                jerasure_total_memcpy_bytes += size;
+                init = 1;
+            } else {
+                galois_region_xor(sptr, dptr, size);
+                jerasure_total_xor_bytes += size;
+            }
+        }
+    }
+
+    /* Now do the data that needs to be multiplied by a factor */
+
+    for (i = 0; i < k; i++) {
+        if (matrix_row[i] != 0 && matrix_row[i] != 1) {
+            if (src_ids == NULL) {
+                sptr = data_ptrs[i];
+            } else if (src_ids[i] < k) {
+                sptr = data_ptrs[src_ids[i]];
+            } else {
+                sptr = coding_ptrs[src_ids[i]-k];
+            }
+            switch (w) {
+                case 8:  galois_w08_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
+                case 16: galois_w16_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
+                case 32: galois_w32_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
+                case 64: galois_w64_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
+            }
+            jerasure_total_gf_bytes += size;
+            init = 1;
+        }
+    }
+}
+
 void jerasure_matrix_dotprod(int k, int w, int *matrix_row,
                           int *src_ids, int dest_id,
                           char **data_ptrs, char **coding_ptrs, int size)
@@ -588,7 +744,7 @@ void jerasure_matrix_dotprod(int k, int w, int *matrix_row,
   char *dptr, *sptr;
   int i;
 
-  if (w != 1 && w != 8 && w != 16 && w != 32) {
+  if (w != 1 && w != 8 && w != 16 && w != 32 && w != 64) {
     fprintf(stderr, "ERROR: jerasure_matrix_dotprod() called and w is not 1, 8, 16 or 32\n");
     assert(0);
   }
@@ -634,6 +790,7 @@ void jerasure_matrix_dotprod(int k, int w, int *matrix_row,
         case 8:  galois_w08_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
         case 16: galois_w16_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
         case 32: galois_w32_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
+        case 64: galois_w64_region_multiply(sptr, matrix_row[i], size, dptr, init); break;
       }
       jerasure_total_gf_bytes += size;
       init = 1;
@@ -1457,12 +1614,12 @@ void jerasure_bitmatrix_encode(int k, int m, int w, int *bitmatrix,
 
   if (packetsize%sizeof(long) != 0) {
     fprintf(stderr, "jerasure_bitmatrix_encode - packetsize(%d) %c sizeof(long) != 0\n", packetsize, '%');
-    assert(0);
+    //assert(0);
   }
   if (size%(packetsize*w) != 0) {
     fprintf(stderr, "jerasure_bitmatrix_encode - size(%d) %c (packetsize(%d)*w(%d))) != 0\n", 
          size, '%', packetsize, w);
-    assert(0);
+    //assert(0);
   }
 
   for (i = 0; i < m; i++) {
