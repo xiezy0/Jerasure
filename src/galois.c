@@ -287,8 +287,8 @@ int galois_single_multiply(int x, int y, int w)
     galois_init(w);
   }
 
-  if (w <= 64) {
-    return gfp_array[w]->multiply.w64(gfp_array[w], x, y);
+  if (w <= 32) {
+    return gfp_array[w]->multiply.w32(gfp_array[w], x, y);
   } else {
     fprintf(stderr, "ERROR -- Galois field not implemented for w=%d\n", w);
     return 0;
@@ -304,8 +304,8 @@ int galois_single_divide(int x, int y, int w)
     galois_init(w);
   }
 
-  if (w <= 64) {
-    return gfp_array[w]->divide.w64(gfp_array[w], x, y);
+  if (w <= 32) {
+    return gfp_array[w]->divide.w32(gfp_array[w], x, y);
   } else {
     fprintf(stderr, "ERROR -- Galois field not implemented for w=%d\n", w);
     return 0;
@@ -413,7 +413,7 @@ void galois_w64_region_xor(void *src, void *dest, int nbytes)
 void galois_region_xor(char *src, char *dest, int nbytes)
 {
   if (nbytes >= 16) {
-    galois_w64_region_xor(src, dest, nbytes);
+    galois_w32_region_xor(src, dest, nbytes);
   } else {
     int i = 0;
     for (i = 0; i < nbytes; i++) {
