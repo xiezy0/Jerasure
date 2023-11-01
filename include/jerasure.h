@@ -144,6 +144,9 @@ void jerasure_matrix_encode(int k, int m, int w, int *matrix,
 void jerasure_matrix_encode64(int k, int m, int w, int64_t *matrix,
                             char **data_ptrs, char **coding_ptrs, int size);
 
+void jerasure_matrix_encode128(int k, int m, int w, int64_t *matrix,
+                              char **data_ptrs, char **coding_ptrs, int size);
+
 void jerasure_bitmatrix_encode(int k, int m, int w, int *bitmatrix,
                             char **data_ptrs, char **coding_ptrs, int size, int packetsize);
 
@@ -232,6 +235,10 @@ void jerasure_matrix_dotprod64(int k, int w, int64_t *matrix_row,
                                int *src_ids, int dest_id,
                                char **data_ptrs, char **coding_ptrs, int size);
 
+void jerasure_matrix_dotprod128(int k, int w, int64_t *matrix_row,
+                               int *src_ids, int dest_id,
+                               char **data_ptrs, char **coding_ptrs, int size);
+
 void jerasure_bitmatrix_dotprod(int k, int w, int *bitmatrix_row,
                              int *src_ids, int dest_id,
                              char **data_ptrs, char **coding_ptrs, int size, int packetsize);
@@ -281,9 +288,11 @@ int jerasure_invertible_bitmatrix(int *mat, int rows);
 */
 
 void jerasure_print_matrix64(int64_t *matrix, int rows, int cols, int w);
+void jerasure_print_matrix128(int64_t **matrix, int rows, int cols, int w);
 void jerasure_print_matrix(int *matrix, int rows, int cols, int w);
 void jerasure_print_bitmatrix(int *matrix, int rows, int cols, int w);
 int *jerasure_matrix_to_bitmatrix64(int k, int m, int w, int64_t *matrix);
+int *jerasure_matrix_to_bitmatrix128(int k, int m, int w, int64_t **matrix);
 
 
 int *jerasure_matrix_multiply(int *m1, int *m2, int r1, int c1, int r2, int c2, int w);

@@ -59,6 +59,36 @@ static double jerasure_total_xor_bytes = 0;
 static double jerasure_total_gf_bytes = 0;
 static double jerasure_total_memcpy_bytes = 0;
 
+void jerasure_print_matrix128(int64_t **m, int rows, int cols, int w)
+{
+    int i, j;
+    int fw;
+    char s[30];
+    unsigned int w2;
+
+    if (w == 64) {
+        fw = 20;
+    }
+    else if (w == 32){
+        fw = 10;
+    }
+    else
+    {
+        w2 = (1 << w);
+        sprintf(s, "%u", w2-1);
+        fw = strlen(s);
+    }
+
+
+    for (i = 0; i < rows; i++) {
+        for (j = 0; j < cols; j++) {
+            if (j != 0) printf(" ");
+            printf("%016llx%016llx ", (long long unsigned int) m[i*cols+j][0], (long long unsigned int) m[i*cols+j][1]);
+        }
+        printf("\n");
+    }
+}
+
 void jerasure_print_matrix64(int64_t *m, int rows, int cols, int w)
 {
   int i, j;
@@ -309,6 +339,43 @@ int jerasure_matrix_decode(int k, int m, int w, int *matrix, int row_k_ones, int
   if (decoding_matrix != NULL) free(decoding_matrix);
 
   return 0;
+}
+
+// TODO: use 128bit matrix uint64+uint64
+int *jerasure_matrix_to_bitmatrix128(int k, int m, int w, int64_t **matrix)
+{
+    int *bitmatrix;
+    int rowelts, rowindex, colindex, i, j, l, x;
+    int yindex;
+    int evaresult;
+    int64_t elt;
+
+    if (matrix == NULL) { return NULL; }
+
+    bitmatrix = talloc(int, k*m*w*w);
+    if (!bitmatrix) return NULL;
+
+    rowelts = k * w;
+    rowindex = 0;
+
+    for (i = 0; i < m; i++) {
+        colindex = rowindex;
+        for (j = 0; j < k; j++) {
+            elt = matrix[i*k+j];
+
+            for (x = 0; x < w; x++) {
+                for (l = 0; l < w; l++) {
+                    yindex = colindex+x+l*rowelts;
+                    evaresult = ((elt & (1ULL << l)) ? 1 : 0);
+                    bitmatrix[colindex+x+l*rowelts] = evaresult;
+                }
+                elt = galois_single_multiply64(elt, 2, w);
+            }
+            colindex += w;
+        }
+        rowindex += rowelts * w;
+    }
+    return bitmatrix;
 }
 
 int *jerasure_matrix_to_bitmatrix64(int k, int m, int w, int64_t *matrix)
@@ -1332,7 +1399,6 @@ int jerasure_invertible_bitmatrix(int *mat, int rows)
   return 1;
 }
 
-  
 int *jerasure_matrix_multiply(int *m1, int *m2, int r1, int c1, int r2, int c2, int w)
 {
   int *product, i, j, k;

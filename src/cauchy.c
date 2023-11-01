@@ -165,6 +165,27 @@ int64_t *cauchy_original_coding_matrix64(int k, int m, int w)
     return matrix;
 }
 
+int64_t **cauchy_original_coding_matrix128(int k, int m, int w)
+{
+    int64_t** matrix = malloc(k * m * sizeof(int64_t*));
+    int i, j, index;
+
+    if (w < 31 && (k+m) > (1 << w)) return NULL;
+    if (matrix == NULL) return NULL;
+    index = 0;
+
+
+    for (i = 0; i < m; i++) {
+        for (j = 0; j < k; j++) {
+            matrix[index] = malloc(2 * sizeof(int64_t));
+            matrix[index] = galois_single_divide128(1, (i ^ (m+j)), w);
+            //printf("%016llx%016llx \n", (long long unsigned int) matrix[index][0], (long long unsigned int) matrix[index][1]);
+            index++;
+        }
+    }
+    return matrix;
+}
+
 int *cauchy_xy_coding_matrix(int k, int m, int w, int *X, int *Y)
 {
   int index, i, j;

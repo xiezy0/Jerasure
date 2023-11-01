@@ -52,8 +52,10 @@ extern void galois_change_technique(gf_t *gf, int w);
 
 extern int galois_single_multiply(int a, int b, int w);
 extern int64_t galois_single_multiply64(int64_t x, int64_t y, int w);
-extern int galois_single_divide(int a, int b, int w);
+extern int64_t galois_single_multiply128(int64_t x, int64_t y, int w);
+extern uint64_t *galois_single_divide128(int x, int y, int w);
 extern int64_t galois_single_divide64(int x, int y, int w);
+//extern uint64_t* galois_single_divide128(int x, int y, int w);
 extern int galois_inverse(int x, int w);
 
 void galois_region_xor(           char *src,         /* Source Region */
@@ -91,6 +93,12 @@ void galois_w64_region_multiply(char *region,       /* Region to multiply */
                                                        Otherwise region is overwritten */
                                 int add);         /* If (r2 != NULL && add) the produce is XOR'd with r2 */
 
+void galois_w128_region_multiply(char *region,       /* Region to multiply */
+                                int64_t multby,       /* Number to multiply by */
+                                int nbytes,       /* Number of bytes in region */
+                                char *r2,         /* If r2 != NULL, products go here.
+                                                       Otherwise region is overwritten */
+                                int add);         /* If (r2 != NULL && add) the produce is XOR'd with r2 */
 
 gf_t* galois_init_field(int w,
                              int mult_type,
