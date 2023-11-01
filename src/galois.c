@@ -262,6 +262,27 @@ void galois_change_technique(gf_t *gf, int w)
   gfp_array[w] = gf;
 }
 
+int64_t* galois_single_multiply128(int64_t* x, int64_t* y, int w)
+{
+    if (x == 0 || y == 0) return 0;
+
+    if (gfp_array[w] == NULL) {
+        galois_init(w);
+    }
+    uint64_t* result = malloc(2 * sizeof(uint64_t));
+    uint64_t y_128[2];
+    y_128[0] = 0;
+    y_128[1] = y;
+
+    if (w <= 128) {
+        gfp_array[w]->multiply.w128(gfp_array[w], x, y_128, result);
+        return result;
+    } else {
+        fprintf(stderr, "ERROR -- Galois field not implemented for w=%d\n", w);
+        return 0;
+    }
+}
+
 int64_t galois_single_multiply64(int64_t x, int64_t y, int w)
 {
     if (x == 0 || y == 0) return 0;

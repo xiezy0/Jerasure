@@ -348,7 +348,7 @@ int *jerasure_matrix_to_bitmatrix128(int k, int m, int w, int64_t **matrix)
     int rowelts, rowindex, colindex, i, j, l, x;
     int yindex;
     int evaresult;
-    int64_t elt;
+    int64_t* elt;
 
     if (matrix == NULL) { return NULL; }
 
@@ -361,15 +361,23 @@ int *jerasure_matrix_to_bitmatrix128(int k, int m, int w, int64_t **matrix)
     for (i = 0; i < m; i++) {
         colindex = rowindex;
         for (j = 0; j < k; j++) {
+            elt = malloc(2 * sizeof(int64_t));
             elt = matrix[i*k+j];
 
             for (x = 0; x < w; x++) {
                 for (l = 0; l < w; l++) {
                     yindex = colindex+x+l*rowelts;
-                    evaresult = ((elt & (1ULL << l)) ? 1 : 0);
+                    if (l < 64)
+                    {
+                        evaresult = ((elt[1] & (1ULL << l)) ? 1 : 0);
+                    }else
+                    {
+                        evaresult = ((elt[0] & (1ULL << l)) ? 1 : 0);
+                    }
+
                     bitmatrix[colindex+x+l*rowelts] = evaresult;
                 }
-                elt = galois_single_multiply64(elt, 2, w);
+                elt = galois_single_multiply128(elt, 2, w);
             }
             colindex += w;
         }

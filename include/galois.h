@@ -52,7 +52,7 @@ extern void galois_change_technique(gf_t *gf, int w);
 
 extern int galois_single_multiply(int a, int b, int w);
 extern int64_t galois_single_multiply64(int64_t x, int64_t y, int w);
-extern int64_t galois_single_multiply128(int64_t x, int64_t y, int w);
+extern int64_t *galois_single_multiply128(int64_t* x, int64_t* y, int w);
 extern uint64_t *galois_single_divide128(int x, int y, int w);
 extern int64_t galois_single_divide64(int x, int y, int w);
 //extern uint64_t* galois_single_divide128(int x, int y, int w);
